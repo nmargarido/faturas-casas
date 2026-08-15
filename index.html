@@ -151,35 +151,35 @@
 <div class="modal-overlay" id="modalCasa">
   <div class="modal" style="max-width:640px;">
     <h3 id="modalCasaTitle">Nova casa</h3>
-    <div class="tag-row" id="casaTabs" style="display:none;">
+    <div class="tag-row" id="casaTabs">
       <button type="button" class="filter-chip active" data-casatab="dados">Dados</button>
-      <button type="button" class="filter-chip" data-casatab="despesas">Despesas</button>
+      <button type="button" class="filter-chip" data-casatab="inquilino">Inquilino</button>
+      <button type="button" class="filter-chip" data-casatab="condominio">Condomínio</button>
+      <button type="button" class="filter-chip" data-casatab="despesas" id="casaTabDespesasBtn" style="display:none;">Despesas</button>
     </div>
     <div id="casaTabDados">
-    <div class="form-section">Identificação</div>
-    <div class="form-grid">
       <div class="form-row"><label>Nome (apelido)</label><input id="fCasaNome"></div>
-      <div class="form-row"><label>Código postal</label><input id="fCasaCP" placeholder="0000-000"></div>
+      <div class="form-row"><label>Morada</label><input id="fCasaMorada"></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Código postal</label><input id="fCasaCP" placeholder="0000-000"></div>
+        <div class="form-row"><label>Descrição do código postal</label><input id="fCasaCPDesc" placeholder="ex: 2685-374 Prior Velho"></div>
+      </div>
+      <div class="form-row"><label>Valor da renda (€)</label><input id="fValorRenda" type="number" step="0.01"></div>
     </div>
-    <div class="form-row"><label>Descrição do código postal</label><input id="fCasaCPDesc" placeholder="ex: 2685-374 Prior Velho"></div>
-    <div class="form-row"><label>Morada</label><input id="fCasaMorada"></div>
-    <div class="form-section">Inquilino</div>
-    <div class="form-grid">
+    <div id="casaTabInquilino" style="display:none;">
       <div class="form-row"><label>Nome</label><input id="fInqNome"></div>
-      <div class="form-row"><label>Telemóvel</label><input id="fInqTel"></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Telemóvel</label><input id="fInqTel"></div>
+        <div class="form-row"><label>E-mail</label><input id="fInqEmail" type="email"></div>
+      </div>
     </div>
-    <div class="form-row"><label>E-mail</label><input id="fInqEmail" type="email"></div>
-    <div class="form-section">Condomínio</div>
-    <div class="form-grid">
+    <div id="casaTabCondominio" style="display:none;">
       <div class="form-row"><label>Administrador</label><input id="fCondAdmin"></div>
-      <div class="form-row"><label>Telemóvel</label><input id="fCondTel"></div>
-    </div>
-    <div class="form-grid">
-      <div class="form-row"><label>E-mail</label><input id="fCondEmail" type="email"></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Telemóvel</label><input id="fCondTel"></div>
+        <div class="form-row"><label>E-mail</label><input id="fCondEmail" type="email"></div>
+      </div>
       <div class="form-row"><label>Valor do condomínio (€)</label><input id="fCondValor" type="number" step="0.01"></div>
-    </div>
-    <div class="form-section">Renda</div>
-    <div class="form-row"><label>Valor da renda (€)</label><input id="fValorRenda" type="number" step="0.01"></div>
     </div>
     <div id="casaTabDespesas" style="display:none;">
       <div id="casaDespesasWrap"></div>
@@ -586,8 +586,9 @@ async function saveCasa(){
 
 function switchCasaTab(tab){
   document.querySelectorAll('#casaTabs .filter-chip').forEach(b=>b.classList.toggle('active', b.dataset.casatab===tab));
-  document.getElementById('casaTabDados').style.display = tab==='dados' ? '' : 'none';
-  document.getElementById('casaTabDespesas').style.display = tab==='despesas' ? '' : 'none';
+  ['dados','inquilino','condominio','despesas'].forEach(t=>{
+    document.getElementById('casaTab'+t.charAt(0).toUpperCase()+t.slice(1)).style.display = (t===tab) ? '' : 'none';
+  });
 }
 document.querySelectorAll('#casaTabs .filter-chip').forEach(btn=>{
   btn.addEventListener('click', ()=>switchCasaTab(btn.dataset.casatab));
@@ -617,7 +618,7 @@ function renderCasaDespesas(spId){
 function openNovaCasa(){
   editingCasaId = null;
   document.getElementById('modalCasaTitle').textContent = 'Nova casa';
-  document.getElementById('casaTabs').style.display = 'none';
+  document.getElementById('casaTabDespesasBtn').style.display = 'none';
   switchCasaTab('dados');
   ['fCasaNome','fCasaMorada','fCasaCP','fCasaCPDesc','fInqNome','fInqTel','fInqEmail','fCondAdmin','fCondTel','fCondEmail','fCondValor','fValorRenda']
     .forEach(id=>document.getElementById(id).value='');
@@ -628,7 +629,7 @@ function openEditarCasa(spId){
   if(!c) return;
   editingCasaId = spId;
   document.getElementById('modalCasaTitle').textContent = 'Editar casa';
-  document.getElementById('casaTabs').style.display = 'flex';
+  document.getElementById('casaTabDespesasBtn').style.display = '';
   switchCasaTab('dados');
   document.getElementById('fCasaNome').value = c.nome||'';
   document.getElementById('fCasaMorada').value = c.morada||'';
