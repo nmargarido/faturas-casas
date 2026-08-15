@@ -284,6 +284,13 @@ async function fetchColumnMap(listId){
   }
   return map;
 }
+function resolveKeyMulti(map, candidateLabels, fallback){
+  for(const label of candidateLabels){
+    const k = map[normalizeLabel(label)];
+    if(k) return k;
+  }
+  return fallback;
+}
 function resolveKey(map, candidateLabel, fallback){
   return map[normalizeLabel(candidateLabel)] || fallback;
 }
@@ -648,7 +655,7 @@ function faturaToSpFields(f){
 }
 function linkFicheiroFields(f){
   if(!f.ficheiroUrl) return null;
-  const key = resolveKey(faturasColMap,'LinkFicheiro','LinkFicheiro');
+  const key = resolveKeyMulti(faturasColMap,['FicheiroUrl','LinkFicheiro'],'FicheiroUrl');
   return { [key]: f.ficheiroUrl };
 }
 function spItemToFatura(it){
@@ -657,7 +664,7 @@ function spItemToFatura(it){
   const mesKey = resolveKey(m,'Mes','Mes');
   const casaKey = resolveKey(m,'Casa','Casa');
   const descKey = resolveKey(m,'Descricao','Title');
-  const linkKey = resolveKey(m,'LinkFicheiro','LinkFicheiro');
+  const linkKey = resolveKeyMulti(m,['FicheiroUrl','LinkFicheiro'],'FicheiroUrl');
   const mesVal = f[mesKey] || f.Mes;
   const casaLookupVal = f[casaKey+'LookupId'] || f.CasaLookupId;
   const casaObj = f[casaKey] || f.Casa;
@@ -860,12 +867,12 @@ async function showDiagnostico(){
   openModal('modalDiag');
   try{
     const faturasCols = await fetchRawColumns(faturasListId, true);
-    const linkCol = faturasCols.find(c => normalizeLabel(c.displayName)===normalizeLabel('LinkFicheiro') || normalizeLabel(c.name)===normalizeLabel('LinkFicheiro'));
+    const linkCol = faturasCols.find(c => normalizeLabel(c.displayName)===normalizeLabel('FicheiroUrl') || normalizeLabel(c.name)===normalizeLabel('FicheiroUrl') || normalizeLabel(c.displayName)===normalizeLabel('LinkFicheiro'));
     let out = '';
     if(linkCol){
-      out += `Coluna "LinkFicheiro" (JSON completo):\n${JSON.stringify(linkCol, null, 2)}\n\n`;
+      out += `Coluna do ficheiro (JSON completo):\n${JSON.stringify(linkCol, null, 2)}\n\n`;
     }else{
-      out += `Coluna "LinkFicheiro" NÃO encontrada na lista FaturasServicos.\n\n`;
+      out += `Coluna "FicheiroUrl" NÃO encontrada na lista FaturasServicos.\n\n`;
     }
     const fmt = cols => cols.map(c=>`  nome interno: ${c.name}   |   nome visível: ${c.displayName}   |   hidden: ${!!c.hidden}   |   readOnly: ${!!c.readOnly}`).join('\n');
     out += `TODAS AS COLUNAS "FaturasServicos":\n${fmt(faturasCols)}`;
