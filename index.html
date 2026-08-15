@@ -252,13 +252,18 @@ let editingCasaId = null, editingFaturaId = null;
 function normalizeLabel(s){
   return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 }
+const SYSTEM_COLUMN_BLOCKLIST = new Set(['linktitle','linktitlenomenu','edit','docicon','itemchildcount','folderchildcount','contenttype','attachments','_comments','approvalstatus']);
 async function fetchColumnMap(listId){
   const map = {};
   try{
-    let url = `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName&$top=200`;
+    let url = `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,hidden,readOnly&$top=200`;
     while(url){
       const data = await graphFetch(url);
-      (data.value||[]).forEach(c=>{ map[normalizeLabel(c.displayName)] = c.name; });
+      (data.value||[]).forEach(c=>{
+        if(c.hidden || c.readOnly) return; // ignora colunas escondidas/só-leitura do sistema
+        if(SYSTEM_COLUMN_BLOCKLIST.has((c.name||'').toLowerCase())) return;
+        map[normalizeLabel(c.displayName)] = c.name;
+      });
       url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH_BASE,'') : null;
     }
   }catch(e){
