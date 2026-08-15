@@ -596,10 +596,11 @@ function faturaToSpFields(f){
     Estado: f.estado,
     NumeroDocumento: f.numDoc || ''
   });
-  if(f.ficheiroUrl){
-    fields.LinkFicheiro = { Url: f.ficheiroUrl, Description: f.ficheiroNome || 'Fatura' };
-  }
   return fields;
+}
+function linkFicheiroFields(f){
+  if(!f.ficheiroUrl) return null;
+  return { LinkFicheiro: { Url: f.ficheiroUrl, Description: f.ficheiroNome || 'Fatura' } };
 }
 function spItemToFatura(it){
   const f = it.fields || {};
@@ -661,8 +662,26 @@ async function saveFatura(){
       const existing = state.faturas.find(x=>x.spId===editingFaturaId);
       if(!f.ficheiroUrl && existing){ f.ficheiroUrl = existing.ficheiroUrl; f.ficheiroNome = existing.ficheiroNome; }
       await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${editingFaturaId}/fields`, { method:'PATCH', body: JSON.stringify(faturaToSpFields(f)) });
+      const linkFields = linkFicheiroFields(f);
+      if(linkFields){
+        try{
+          await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${editingFaturaId}/fields`, { method:'PATCH', body: JSON.stringify(linkFields) });
+        }catch(e2){
+          console.error('Falha ao gravar link do ficheiro:', e2);
+          toast('Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message);
+        }
+      }
     }else{
-      await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items`, { method:'POST', body: JSON.stringify({ fields: faturaToSpFields(f) }) });
+      const created = await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items`, { method:'POST', body: JSON.stringify({ fields: faturaToSpFields(f) }) });
+      const linkFields = linkFicheiroFields(f);
+      if(linkFields && created && created.id){
+        try{
+          await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${created.id}/fields`, { method:'PATCH', body: JSON.stringify(linkFields) });
+        }catch(e2){
+          console.error('Falha ao gravar link do ficheiro:', e2);
+          toast('Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message);
+        }
+      }
     }
     closeModal('modalFatura');
     toast('Fatura guardada.');
