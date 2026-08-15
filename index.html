@@ -649,7 +649,7 @@ function faturaToSpFields(f){
 function linkFicheiroFields(f){
   if(!f.ficheiroUrl) return null;
   const key = resolveKey(faturasColMap,'LinkFicheiro','LinkFicheiro');
-  return { [key]: { Url: f.ficheiroUrl, Description: f.ficheiroNome || 'Fatura' } };
+  return { [key]: f.ficheiroUrl };
 }
 function spItemToFatura(it){
   const f = it.fields || {};
@@ -662,6 +662,8 @@ function spItemToFatura(it){
   const casaLookupVal = f[casaKey+'LookupId'] || f.CasaLookupId;
   const casaObj = f[casaKey] || f.Casa;
   const linkObj = f[linkKey] || f.LinkFicheiro;
+  const ficheiroUrl = typeof linkObj === 'string' ? linkObj : (linkObj ? linkObj.Url : '');
+  const ficheiroNome = typeof linkObj === 'object' && linkObj ? linkObj.Description : '';
   return {
     spId: it.id,
     descricao: f[descKey] || f.Title || '',
@@ -675,8 +677,8 @@ function spItemToFatura(it){
     valor: f[resolveKey(m,'Valor','Valor')],
     estado: f[resolveKey(m,'Estado','Estado')] || 'Pendente',
     numDoc: f[resolveKey(m,'NumeroDocumento','NumeroDocumento')] || '',
-    ficheiroUrl: linkObj ? linkObj.Url : '',
-    ficheiroNome: linkObj ? linkObj.Description : ''
+    ficheiroUrl: ficheiroUrl || '',
+    ficheiroNome: ficheiroNome || ''
   };
 }
 
@@ -857,17 +859,26 @@ async function showDiagnostico(){
   el.textContent = 'A carregar...';
   openModal('modalDiag');
   try{
-    const casasCols = await fetchRawColumns(casasListId);
-    const faturasCols = await fetchRawColumns(faturasListId);
+    const faturasCols = await fetchRawColumns(faturasListId, true);
+    const linkCol = faturasCols.find(c => normalizeLabel(c.displayName)===normalizeLabel('LinkFicheiro') || normalizeLabel(c.name)===normalizeLabel('LinkFicheiro'));
+    let out = '';
+    if(linkCol){
+      out += `Coluna "LinkFicheiro" (JSON completo):\n${JSON.stringify(linkCol, null, 2)}\n\n`;
+    }else{
+      out += `Coluna "LinkFicheiro" NÃO encontrada na lista FaturasServicos.\n\n`;
+    }
     const fmt = cols => cols.map(c=>`  nome interno: ${c.name}   |   nome visível: ${c.displayName}   |   hidden: ${!!c.hidden}   |   readOnly: ${!!c.readOnly}`).join('\n');
-    el.textContent = `LISTA "Casas":\n${fmt(casasCols)}\n\nLISTA "FaturasServicos":\n${fmt(faturasCols)}`;
+    out += `TODAS AS COLUNAS "FaturasServicos":\n${fmt(faturasCols)}`;
+    el.textContent = out;
   }catch(e){
     el.textContent = 'Erro ao obter colunas: ' + e.message;
   }
 }
-async function fetchRawColumns(listId){
+async function fetchRawColumns(listId, full){
   let all = [];
-  let url = `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,hidden,readOnly&$top=200`;
+  let url = full
+    ? `/sites/${siteId}/lists/${listId}/columns?$top=200`
+    : `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,hidden,readOnly&$top=200`;
   while(url){
     const data = await graphFetch(url);
     all = all.concat(data.value||[]);
