@@ -155,6 +155,7 @@
       <div class="form-row"><label>Nome (apelido)</label><input id="fCasaNome"></div>
       <div class="form-row"><label>Código postal</label><input id="fCasaCP" placeholder="0000-000"></div>
     </div>
+    <div class="form-row"><label>Descrição do código postal</label><input id="fCasaCPDesc" placeholder="ex: 2685-374 Prior Velho"></div>
     <div class="form-row"><label>Morada</label><input id="fCasaMorada"></div>
     <div class="form-section">Inquilino</div>
     <div class="form-grid">
@@ -440,9 +441,10 @@ async function uploadFaturaAnexo(file, folderPath, baseName){
 /* ====================== CASAS: LEITURA / ESCRITA ====================== */
 function casaToSpFields(c){
   return {
-    Nome: c.nome || '',
+    Title: c.nome || '',
     Morada: c.morada || '',
     CodigoPostal: c.codigoPostal || '',
+    CodigoPostalDescricao: c.codigoPostalDescricao || '',
     InquilinoNome: c.inquilinoNome || '',
     InquilinoTelemovel: c.inquilinoTelemovel || '',
     InquilinoEmail: c.inquilinoEmail || '',
@@ -460,6 +462,7 @@ function spItemToCasa(it){
     nome: f.Nome || f.Title || '',
     morada: f.Morada || '',
     codigoPostal: f.CodigoPostal || '',
+    codigoPostalDescricao: f.CodigoPostalDescricao || '',
     inquilinoNome: f.InquilinoNome || '',
     inquilinoTelemovel: f.InquilinoTelemovel || '',
     inquilinoEmail: f.InquilinoEmail || '',
@@ -481,6 +484,7 @@ async function saveCasa(){
     nome: document.getElementById('fCasaNome').value.trim(),
     morada: document.getElementById('fCasaMorada').value.trim(),
     codigoPostal: document.getElementById('fCasaCP').value.trim(),
+    codigoPostalDescricao: document.getElementById('fCasaCPDesc').value.trim(),
     inquilinoNome: document.getElementById('fInqNome').value.trim(),
     inquilinoTelemovel: document.getElementById('fInqTel').value.trim(),
     inquilinoEmail: document.getElementById('fInqEmail').value.trim(),
@@ -515,7 +519,7 @@ async function saveCasa(){
 function openNovaCasa(){
   editingCasaId = null;
   document.getElementById('modalCasaTitle').textContent = 'Nova casa';
-  ['fCasaNome','fCasaMorada','fCasaCP','fInqNome','fInqTel','fInqEmail','fCondAdmin','fCondTel','fCondEmail','fCondValor','fValorRenda']
+  ['fCasaNome','fCasaMorada','fCasaCP','fCasaCPDesc','fInqNome','fInqTel','fInqEmail','fCondAdmin','fCondTel','fCondEmail','fCondValor','fValorRenda']
     .forEach(id=>document.getElementById(id).value='');
   openModal('modalCasa');
 }
@@ -527,6 +531,7 @@ function openEditarCasa(spId){
   document.getElementById('fCasaNome').value = c.nome||'';
   document.getElementById('fCasaMorada').value = c.morada||'';
   document.getElementById('fCasaCP').value = c.codigoPostal||'';
+  document.getElementById('fCasaCPDesc').value = c.codigoPostalDescricao||'';
   document.getElementById('fInqNome').value = c.inquilinoNome||'';
   document.getElementById('fInqTel').value = c.inquilinoTelemovel||'';
   document.getElementById('fInqEmail').value = c.inquilinoEmail||'';
@@ -554,7 +559,7 @@ function renderCasas(){
     ${rows.map(c=>`
       <tr class="clickable" onclick="openEditarCasa('${c.spId}')">
         <td><strong>${escapeHtml(c.nome)}</strong></td>
-        <td>${escapeHtml(c.morada)} ${c.codigoPostal?('<span class="muted">'+escapeHtml(c.codigoPostal)+'</span>'):''}</td>
+        <td>${escapeHtml(c.morada)} ${c.codigoPostalDescricao ? ('<span class="muted">'+escapeHtml(c.codigoPostalDescricao)+'</span>') : (c.codigoPostal?('<span class="muted">'+escapeHtml(c.codigoPostal)+'</span>'):'')}</td>
         <td>${escapeHtml(c.inquilinoNome)||'<span class="muted">—</span>'}</td>
         <td class="muted">${escapeHtml(c.inquilinoTelemovel)||''} ${c.inquilinoEmail?('· '+escapeHtml(c.inquilinoEmail)):''}</td>
         <td class="num">${c.valorRenda!=null?fmtCurrency(c.valorRenda):'—'}</td>
