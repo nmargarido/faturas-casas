@@ -594,16 +594,24 @@ document.querySelectorAll('#casaTabs .filter-chip').forEach(btn=>{
   btn.addEventListener('click', ()=>switchCasaTab(btn.dataset.casatab));
 });
 
-function renderCasaDespesas(spId){
+const CASA_DESPESAS_PAGE_SIZE = 6;
+let casaDespesasPage = 0;
+function renderCasaDespesas(spId, page){
+  if(page != null) casaDespesasPage = page;
   const wrap = document.getElementById('casaDespesasWrap');
   const rows = state.faturas.filter(f=>f.casaSpId===spId).sort((a,b)=>(b.mes||'').localeCompare(a.mes||''));
   if(!rows.length){ wrap.innerHTML = `<div class="empty">Ainda não há faturas registadas para esta casa.</div>`; return; }
   const total = rows.reduce((s,f)=> s + (f.valor!=null ? Number(f.valor) : 0), 0);
+  const totalPages = Math.max(1, Math.ceil(rows.length / CASA_DESPESAS_PAGE_SIZE));
+  if(casaDespesasPage >= totalPages) casaDespesasPage = totalPages - 1;
+  if(casaDespesasPage < 0) casaDespesasPage = 0;
+  const start = casaDespesasPage * CASA_DESPESAS_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + CASA_DESPESAS_PAGE_SIZE);
   const badgeClass = e => e==='Paga' ? 'paga' : (e==='Vencida' ? 'vencida' : 'pendente');
   wrap.innerHTML = `
     <div class="muted" style="font-size:12.5px;margin-bottom:10px;">Total (${rows.length} fatura${rows.length===1?'':'s'}): <strong style="color:var(--text);">${fmtCurrency(total)}</strong></div>
     <table><thead><tr><th>Tipo</th><th>Fornecedor</th><th>Mês</th><th class="num">Valor</th><th>Estado</th><th>Ficheiro</th></tr></thead><tbody>
-    ${rows.map(f=>`
+    ${pageRows.map(f=>`
       <tr>
         <td>${escapeHtml(f.tipoServico)}</td>
         <td>${escapeHtml(f.fornecedor)}</td>
@@ -612,7 +620,12 @@ function renderCasaDespesas(spId){
         <td><span class="badge ${badgeClass(f.estado)}">${escapeHtml(f.estado)}</span></td>
         <td>${f.ficheiroUrl?`<a class="filelink" href="${f.ficheiroUrl}" target="_blank" rel="noopener">Abrir</a>`:'<span class="muted">—</span>'}</td>
       </tr>`).join('')}
-    </tbody></table>`;
+    </tbody></table>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+      <button type="button" class="btn small secondary" ${casaDespesasPage<=0?'disabled':''} onclick="renderCasaDespesas('${spId}', ${casaDespesasPage-1})">← Anterior</button>
+      <span class="muted" style="font-size:12.5px;">Página ${casaDespesasPage+1} de ${totalPages}</span>
+      <button type="button" class="btn small secondary" ${casaDespesasPage>=totalPages-1?'disabled':''} onclick="renderCasaDespesas('${spId}', ${casaDespesasPage+1})">Seguinte →</button>
+    </div>`;
 }
 
 function openNovaCasa(){
@@ -643,7 +656,7 @@ function openEditarCasa(spId){
   document.getElementById('fCondEmail').value = c.condEmail||'';
   document.getElementById('fCondValor').value = c.condValor ?? '';
   document.getElementById('fValorRenda').value = c.valorRenda ?? '';
-  renderCasaDespesas(spId);
+  renderCasaDespesas(spId, 0);
   openModal('modalCasa');
 }
 
