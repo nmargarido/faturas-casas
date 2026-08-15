@@ -245,8 +245,30 @@ const ONEDRIVE_MAX_SIZE = 4 * 1024 * 1024; // 4MB (upload simples)
 let msalInstance = null;
 let currentAccount = null;
 let siteId = null, casasListId = null, faturasListId = null;
+let casasColMap = {}, faturasColMap = {};
 let state = { casas: [], faturas: [] };
 let editingCasaId = null, editingFaturaId = null;
+
+function normalizeLabel(s){
+  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+async function fetchColumnMap(listId){
+  const map = {};
+  try{
+    let url = `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName&$top=200`;
+    while(url){
+      const data = await graphFetch(url);
+      (data.value||[]).forEach(c=>{ map[normalizeLabel(c.displayName)] = c.name; });
+      url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH_BASE,'') : null;
+    }
+  }catch(e){
+    console.error('Não foi possível obter as colunas da lista:', e);
+  }
+  return map;
+}
+function resolveKey(map, candidateLabel, fallback){
+  return map[normalizeLabel(candidateLabel)] || fallback;
+}
 
 /* ====================== UTIL ====================== */
 const fmtCurrency = v => new Intl.NumberFormat('pt-PT', {style:'currency', currency:'EUR'}).format(v||0);
@@ -446,19 +468,20 @@ function stripNulls(obj){
   return out;
 }
 function casaToSpFields(c){
+  const m = casasColMap;
   return stripNulls({
-    Title: c.nome || '',
-    Morada: c.morada || '',
-    CodigoPostal: c.codigoPostal || '',
-    CodigoPostalDescricao: c.codigoPostalDescricao || '',
-    InquilinoNome: c.inquilinoNome || '',
-    InquilinoTelemovel: c.inquilinoTelemovel || '',
-    InquilinoEmail: c.inquilinoEmail || '',
-    CondominioAdministrador: c.condAdmin || '',
-    CondominioTelemovel: c.condTelemovel || '',
-    CondominioEmail: c.condEmail || '',
-    CondominioValor: c.condValor !== '' && c.condValor != null ? Number(c.condValor) : null,
-    ValorRenda: c.valorRenda !== '' && c.valorRenda != null ? Number(c.valorRenda) : null
+    [resolveKey(m,'Nome','Title')]: c.nome || '',
+    [resolveKey(m,'Morada','Morada')]: c.morada || '',
+    [resolveKey(m,'CodigoPostal','CodigoPostal')]: c.codigoPostal || '',
+    [resolveKey(m,'CodigoPostalDescricao','CodigoPostalDescricao')]: c.codigoPostalDescricao || '',
+    [resolveKey(m,'InquilinoNome','InquilinoNome')]: c.inquilinoNome || '',
+    [resolveKey(m,'InquilinoTelemovel','InquilinoTelemovel')]: c.inquilinoTelemovel || '',
+    [resolveKey(m,'InquilinoEmail','InquilinoEmail')]: c.inquilinoEmail || '',
+    [resolveKey(m,'CondominioAdministrador','CondominioAdministrador')]: c.condAdmin || '',
+    [resolveKey(m,'CondominioTelemovel','CondominioTelemovel')]: c.condTelemovel || '',
+    [resolveKey(m,'CondominioEmail','CondominioEmail')]: c.condEmail || '',
+    [resolveKey(m,'CondominioValor','CondominioValor')]: c.condValor !== '' && c.condValor != null ? Number(c.condValor) : null,
+    [resolveKey(m,'ValorRenda','ValorRenda')]: c.valorRenda !== '' && c.valorRenda != null ? Number(c.valorRenda) : null
   });
 }
 function spItemToCasa(it){
@@ -584,41 +607,53 @@ function populateCasaSelects(){
 
 /* ====================== FATURAS: LEITURA / ESCRITA ====================== */
 function faturaToSpFields(f){
+  const m = faturasColMap;
+  const casaInternal = resolveKey(m,'Casa','Casa');
   const fields = stripNulls({
-    Title: f.descricao || `${f.fornecedor} - ${f.mes||''}`,
-    CasaLookupId: f.casaSpId ? parseInt(f.casaSpId,10) : null,
-    TipoServico: f.tipoServico,
-    Fornecedor: f.fornecedor,
-    Mes: f.mes ? new Date(f.mes+'-01T00:00:00Z').toISOString() : null,
-    DataEmissao: f.dataEmissao ? new Date(f.dataEmissao+'T00:00:00Z').toISOString() : null,
-    DataLimitePagamento: f.dataLimite ? new Date(f.dataLimite+'T00:00:00Z').toISOString() : null,
-    Valor: f.valor !== '' && f.valor != null ? Number(f.valor) : null,
-    Estado: f.estado,
-    NumeroDocumento: f.numDoc || ''
+    [resolveKey(m,'Descricao','Title')]: f.descricao || `${f.fornecedor} - ${f.mes||''}`,
+    [casaInternal+'LookupId']: f.casaSpId ? parseInt(f.casaSpId,10) : null,
+    [resolveKey(m,'TipoServico','TipoServico')]: f.tipoServico,
+    [resolveKey(m,'Fornecedor','Fornecedor')]: f.fornecedor,
+    [resolveKey(m,'Mes','Mes')]: f.mes ? new Date(f.mes+'-01T00:00:00Z').toISOString() : null,
+    [resolveKey(m,'DataEmissao','DataEmissao')]: f.dataEmissao ? new Date(f.dataEmissao+'T00:00:00Z').toISOString() : null,
+    [resolveKey(m,'DataLimitePagamento','DataLimitePagamento')]: f.dataLimite ? new Date(f.dataLimite+'T00:00:00Z').toISOString() : null,
+    [resolveKey(m,'Valor','Valor')]: f.valor !== '' && f.valor != null ? Number(f.valor) : null,
+    [resolveKey(m,'Estado','Estado')]: f.estado,
+    [resolveKey(m,'NumeroDocumento','NumeroDocumento')]: f.numDoc || ''
   });
   return fields;
 }
 function linkFicheiroFields(f){
   if(!f.ficheiroUrl) return null;
-  return { LinkFicheiro: { Url: f.ficheiroUrl, Description: f.ficheiroNome || 'Fatura' } };
+  const key = resolveKey(faturasColMap,'LinkFicheiro','LinkFicheiro');
+  return { [key]: { Url: f.ficheiroUrl, Description: f.ficheiroNome || 'Fatura' } };
 }
 function spItemToFatura(it){
   const f = it.fields || {};
+  const m = faturasColMap;
+  const mesKey = resolveKey(m,'Mes','Mes');
+  const casaKey = resolveKey(m,'Casa','Casa');
+  const descKey = resolveKey(m,'Descricao','Title');
+  const linkKey = resolveKey(m,'LinkFicheiro','LinkFicheiro');
+  const mesVal = f[mesKey] || f.Mes;
+  const casaLookupVal = f[casaKey+'LookupId'] || f.CasaLookupId;
+  const casaObj = f[casaKey] || f.Casa;
+  const linkObj = f[linkKey] || f.LinkFicheiro;
   return {
     spId: it.id,
-    descricao: f.Title || '',
-    casaSpId: f.CasaLookupId ? String(f.CasaLookupId) : (f.Casa ? String(f.Casa) : ''),
-    casaNome: (f.Casa && f.Casa.LookupValue) ? f.Casa.LookupValue : '',
-    tipoServico: f.TipoServico || '',
-    fornecedor: f.Fornecedor || '',
-    mes: f.Mes ? f.Mes.slice(0,7) : '',
-    dataEmissao: f.DataEmissao ? f.DataEmissao.slice(0,10) : '',
-    dataLimite: f.DataLimitePagamento ? f.DataLimitePagamento.slice(0,10) : '',
-    valor: f.Valor,
-    estado: f.Estado || 'Pendente',
-    numDoc: f.NumeroDocumento || '',
-    ficheiroUrl: f.LinkFicheiro ? f.LinkFicheiro.Url : '',
-    ficheiroNome: f.LinkFicheiro ? f.LinkFicheiro.Description : ''
+    descricao: f[descKey] || f.Title || '',
+    casaSpId: casaLookupVal ? String(casaLookupVal) : (casaObj ? String(casaObj) : ''),
+    casaNome: (casaObj && casaObj.LookupValue) ? casaObj.LookupValue : '',
+    tipoServico: f[resolveKey(m,'TipoServico','TipoServico')] || '',
+    fornecedor: f[resolveKey(m,'Fornecedor','Fornecedor')] || '',
+    mes: mesVal ? String(mesVal).slice(0,7) : '',
+    dataEmissao: f[resolveKey(m,'DataEmissao','DataEmissao')] ? f[resolveKey(m,'DataEmissao','DataEmissao')].slice(0,10) : '',
+    dataLimite: f[resolveKey(m,'DataLimitePagamento','DataLimitePagamento')] ? f[resolveKey(m,'DataLimitePagamento','DataLimitePagamento')].slice(0,10) : '',
+    valor: f[resolveKey(m,'Valor','Valor')],
+    estado: f[resolveKey(m,'Estado','Estado')] || 'Pendente',
+    numDoc: f[resolveKey(m,'NumeroDocumento','NumeroDocumento')] || '',
+    ficheiroUrl: linkObj ? linkObj.Url : '',
+    ficheiroNome: linkObj ? linkObj.Description : ''
   };
 }
 
@@ -789,6 +824,8 @@ async function bootApp(){
     siteId = await getSiteId();
     casasListId = await getListId(CASAS_LIST_NAME);
     faturasListId = await getListId(FATURAS_LIST_NAME);
+    casasColMap = await fetchColumnMap(casasListId);
+    faturasColMap = await fetchColumnMap(faturasListId);
     await loadCasas();
     populateCasaSelects();
     renderCasas();
