@@ -136,6 +136,14 @@
           <option value="">Todos os estados</option>
           <option>Pendente</option><option>Paga</option><option>Vencida</option>
         </select>
+        <select id="filtroAno"><option value="">Todos os anos</option></select>
+        <select id="filtroMes">
+          <option value="">Todos os meses</option>
+          <option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option>
+          <option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option>
+          <option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option>
+          <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
         <div class="spacer"></div>
         <button class="btn" id="btnNovaFatura">+ Nova fatura</button>
       </div>
@@ -752,6 +760,28 @@ async function loadFaturas(){
   state.faturas = (data.value||[]).map(spItemToFatura);
 }
 
+function encodeSharingUrl(url){
+  const base64 = btoa(unescape(encodeURIComponent(url)))
+    .replace(/=+$/,'')
+    .replace(/\//g,'_')
+    .replace(/\+/g,'-');
+  return 'u!' + base64;
+}
+async function deleteOneDriveFileByUrl(url){
+  if(!url) return false;
+  try{
+    const shareToken = encodeSharingUrl(url);
+    const item = await graphFetch(`/shares/${shareToken}/driveItem?$select=id,parentReference`);
+    if(item && item.id && item.parentReference && item.parentReference.driveId){
+      await graphFetch(`/drives/${item.parentReference.driveId}/items/${item.id}`, { method:'DELETE' });
+      return true;
+    }
+  }catch(e){
+    console.error('Falha ao apagar ficheiro do OneDrive:', e);
+  }
+  return false;
+}
+
 async function saveFatura(){
   const casaSpId = document.getElementById('fFatCasa').value;
   const casa = state.casas.find(c=>c.spId===casaSpId);
@@ -771,6 +801,7 @@ async function saveFatura(){
   if(!f.mes){ toast('Indica o mês a que a fatura respeita.'); return; }
   const btn = document.getElementById('btnGuardarFatura');
   btn.disabled = true; btn.textContent = 'A guardar...';
+  let newlyUploadedUrl = null;
   try{
     // Upload do ficheiro (se escolhido) -> cria pasta Casa/Ano/Mês automaticamente
     const fileInput = document.getElementById('fFatFicheiro');
@@ -782,37 +813,46 @@ async function saveFatura(){
         const folderPath = await getOrCreateFolder([casa ? casa.nome : 'Outra', ano, nomeMesPasta]);
         const baseName = `${f.fornecedor}_${casa?casa.nome:''}_${f.mes}`;
         const uploaded = await uploadFaturaAnexo(fileInput.files[0], folderPath, baseName);
-        if(uploaded){ f.ficheiroUrl = uploaded.url; f.ficheiroNome = uploaded.nome; }
+        if(uploaded){ f.ficheiroUrl = uploaded.url; f.ficheiroNome = uploaded.nome; newlyUploadedUrl = uploaded.url; }
       }catch(eUp){
         console.error('Falha no upload do ficheiro:', eUp);
         throw new Error('Falha ao enviar o ficheiro para o OneDrive: ' + eUp.message);
       }
     }
     let linkWarning = null;
-    if(editingFaturaId){
-      const existing = state.faturas.find(x=>x.spId===editingFaturaId);
-      if(!f.ficheiroUrl && existing){ f.ficheiroUrl = existing.ficheiroUrl; f.ficheiroNome = existing.ficheiroNome; }
-      await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${editingFaturaId}/fields`, { method:'PATCH', body: JSON.stringify(faturaToSpFields(f)) });
-      const linkFields = linkFicheiroFields(f);
-      if(linkFields){
-        try{
-          await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${editingFaturaId}/fields`, { method:'PATCH', body: JSON.stringify(linkFields) });
-        }catch(e2){
-          console.error('Falha ao gravar link do ficheiro:', e2);
-          linkWarning = 'Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message;
+    try{
+      if(editingFaturaId){
+        const existing = state.faturas.find(x=>x.spId===editingFaturaId);
+        if(!f.ficheiroUrl && existing){ f.ficheiroUrl = existing.ficheiroUrl; f.ficheiroNome = existing.ficheiroNome; }
+        await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${editingFaturaId}/fields`, { method:'PATCH', body: JSON.stringify(faturaToSpFields(f)) });
+        const linkFields = linkFicheiroFields(f);
+        if(linkFields){
+          try{
+            await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${editingFaturaId}/fields`, { method:'PATCH', body: JSON.stringify(linkFields) });
+          }catch(e2){
+            console.error('Falha ao gravar link do ficheiro:', e2);
+            linkWarning = 'Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message;
+          }
+        }
+      }else{
+        const created = await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items`, { method:'POST', body: JSON.stringify({ fields: faturaToSpFields(f) }) });
+        const linkFields = linkFicheiroFields(f);
+        if(linkFields && created && created.id){
+          try{
+            await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${created.id}/fields`, { method:'PATCH', body: JSON.stringify(linkFields) });
+          }catch(e2){
+            console.error('Falha ao gravar link do ficheiro:', e2);
+            linkWarning = 'Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message;
+          }
         }
       }
-    }else{
-      const created = await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items`, { method:'POST', body: JSON.stringify({ fields: faturaToSpFields(f) }) });
-      const linkFields = linkFicheiroFields(f);
-      if(linkFields && created && created.id){
-        try{
-          await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${created.id}/fields`, { method:'PATCH', body: JSON.stringify(linkFields) });
-        }catch(e2){
-          console.error('Falha ao gravar link do ficheiro:', e2);
-          linkWarning = 'Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message;
-        }
+    }catch(eSave){
+      // A gravação da fatura em si falhou -> evita deixar o ficheiro órfão no OneDrive
+      if(newlyUploadedUrl){
+        console.error('Gravação falhou; a apagar ficheiro órfão do OneDrive:', newlyUploadedUrl);
+        await deleteOneDriveFileByUrl(newlyUploadedUrl);
       }
+      throw eSave;
     }
     closeModal('modalFatura');
     if(linkWarning){
@@ -821,12 +861,33 @@ async function saveFatura(){
       toast('Fatura guardada.');
     }
     await loadFaturas();
+    populateFiltroAno();
     renderFaturas();
   }catch(e){
     console.error(e);
     toast('Erro ao guardar: ' + e.message);
   }finally{
     btn.disabled = false; btn.textContent = 'Guardar';
+  }
+}
+
+async function deleteFatura(spId){
+  const f = state.faturas.find(x=>x.spId===spId);
+  if(!f) return;
+  const msg = f.ficheiroUrl
+    ? 'Apagar esta fatura? O ficheiro anexado também será removido do OneDrive.'
+    : 'Apagar esta fatura?';
+  if(!confirm(msg)) return;
+  try{
+    await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${spId}`, { method:'DELETE' });
+    if(f.ficheiroUrl){ await deleteOneDriveFileByUrl(f.ficheiroUrl); }
+    toast('Fatura apagada.');
+    await loadFaturas();
+    populateFiltroAno();
+    renderFaturas();
+  }catch(e){
+    console.error(e);
+    toast('Erro ao apagar: ' + e.message);
   }
 }
 
@@ -864,23 +925,37 @@ function openEditarFatura(spId){
   openModal('modalFatura');
 }
 
+function populateFiltroAno(){
+  const anos = new Set();
+  state.faturas.forEach(f=>{ if(f.mes) anos.add(f.mes.slice(0,4)); });
+  const sel = document.getElementById('filtroAno');
+  const current = sel.value;
+  const opts = Array.from(anos).sort((a,b)=>b.localeCompare(a)).map(a=>`<option value="${a}">${a}</option>`).join('');
+  sel.innerHTML = `<option value="">Todos os anos</option>` + opts;
+  if(anos.has(current)) sel.value = current;
+}
+
 function renderFaturas(){
   const wrap = document.getElementById('faturasTableWrap');
   const casaF = document.getElementById('filtroCasa').value;
   const tipoF = document.getElementById('filtroTipo').value;
   const estadoF = document.getElementById('filtroEstado').value;
+  const anoF = document.getElementById('filtroAno').value;
+  const mesF = document.getElementById('filtroMes').value;
   let rows = state.faturas.filter(f =>
     (!casaF || f.casaSpId===casaF) &&
     (!tipoF || f.tipoServico===tipoF) &&
-    (!estadoF || f.estado===estadoF)
+    (!estadoF || f.estado===estadoF) &&
+    (!anoF || (f.mes||'').slice(0,4)===anoF) &&
+    (!mesF || (f.mes||'').slice(5,7)===mesF)
   );
   if(!rows.length){ wrap.innerHTML = `<div class="empty">Nenhuma fatura encontrada.</div>`; return; }
   rows.sort((a,b)=> (b.mes||'').localeCompare(a.mes||''));
   const casaNome = spId => { const c = state.casas.find(x=>x.spId===spId); return c ? c.nome : '—'; };
   const badgeClass = e => e==='Paga' ? 'paga' : (e==='Vencida' ? 'vencida' : 'pendente');
   wrap.innerHTML = `<table><thead><tr>
-      <th>Casa</th><th>Tipo</th><th>Fornecedor</th><th>Mês</th>
-      <th class="num">Valor</th><th>Estado</th><th>Ficheiro</th><th></th>
+      <th>Casa</th><th>Tipo</th><th>Fornecedor</th><th>Mês</th><th>Nº Documento</th>
+      <th class="num">Valor</th><th>Estado</th><th>Ficheiro</th><th></th><th></th>
     </tr></thead><tbody>
     ${rows.map(f=>`
       <tr>
@@ -888,10 +963,12 @@ function renderFaturas(){
         <td>${escapeHtml(f.tipoServico)}</td>
         <td>${escapeHtml(f.fornecedor)}</td>
         <td>${fmtMonth(f.mes)}</td>
+        <td class="muted">${escapeHtml(f.numDoc)||'—'}</td>
         <td class="num">${f.valor!=null?fmtCurrency(f.valor):'—'}</td>
         <td><span class="badge ${badgeClass(f.estado)}">${escapeHtml(f.estado)}</span></td>
         <td>${f.ficheiroUrl?`<a class="filelink" href="${f.ficheiroUrl}" target="_blank" rel="noopener">Abrir</a>`:'<span class="muted">—</span>'}</td>
         <td><button class="btn small secondary" onclick="openEditarFatura('${f.spId}')">Editar</button></td>
+        <td><button class="btn small danger" onclick="deleteFatura('${f.spId}')">Apagar</button></td>
       </tr>`).join('')}
     </tbody></table>`;
 }
@@ -916,7 +993,7 @@ document.getElementById('btnGuardarCasa').addEventListener('click', saveCasa);
 document.getElementById('casasSearch').addEventListener('input', renderCasas);
 document.getElementById('btnNovaFatura').addEventListener('click', openNovaFatura);
 document.getElementById('btnGuardarFatura').addEventListener('click', saveFatura);
-['filtroCasa','filtroTipo','filtroEstado'].forEach(id=>document.getElementById(id).addEventListener('change', renderFaturas));
+['filtroCasa','filtroTipo','filtroEstado','filtroAno','filtroMes'].forEach(id=>document.getElementById(id).addEventListener('change', renderFaturas));
 
 document.getElementById('btnDiag').addEventListener('click', showDiagnostico);
 async function showDiagnostico(){
@@ -964,6 +1041,7 @@ async function bootApp(){
     populateCasaSelects();
     renderCasas();
     await loadFaturas();
+    populateFiltroAno();
     renderFaturas();
   }catch(e){
     console.error(e);
