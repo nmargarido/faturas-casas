@@ -106,6 +106,7 @@
   </nav>
   <div class="spacer"></div>
   <span class="pill" id="userPill">—</span>
+  <button class="btn small secondary" id="btnDiag" style="margin-left:8px;">Diagnóstico</button>
 </header>
 
 <main>
@@ -219,6 +220,18 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ===================== MODAL: DIAGNÓSTICO ===================== -->
+<div class="modal-overlay" id="modalDiag">
+  <div class="modal" style="max-width:720px;">
+    <h3>Diagnóstico de colunas</h3>
+    <div class="muted" style="font-size:12.5px;margin-bottom:10px;">Nomes reais das colunas nas listas do SharePoint (nome interno vs. nome visível). Usa isto para confirmar que os campos correspondem.</div>
+    <div id="diagContent" style="max-height:60vh;overflow:auto;font-family:monospace;font-size:12.5px;white-space:pre-wrap;background:var(--gray-bg);padding:12px;border-radius:8px;"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalDiag')">Fechar</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.7.1/lib/msal-browser.min.js" crossorigin="anonymous" onerror="this.onerror=null;document.write('&lt;script src=&quot;https://alcdn.msauth.net/browser/3.7.1/js/msal-browser.min.js&quot; crossorigin=&quot;anonymous&quot;&gt;&lt;\/script&gt;')"></script>
 <script>
@@ -822,6 +835,31 @@ document.getElementById('casasSearch').addEventListener('input', renderCasas);
 document.getElementById('btnNovaFatura').addEventListener('click', openNovaFatura);
 document.getElementById('btnGuardarFatura').addEventListener('click', saveFatura);
 ['filtroCasa','filtroTipo','filtroEstado'].forEach(id=>document.getElementById(id).addEventListener('change', renderFaturas));
+
+document.getElementById('btnDiag').addEventListener('click', showDiagnostico);
+async function showDiagnostico(){
+  const el = document.getElementById('diagContent');
+  el.textContent = 'A carregar...';
+  openModal('modalDiag');
+  try{
+    const casasCols = await fetchRawColumns(casasListId);
+    const faturasCols = await fetchRawColumns(faturasListId);
+    const fmt = cols => cols.map(c=>`  nome interno: ${c.name}   |   nome visível: ${c.displayName}   |   hidden: ${!!c.hidden}   |   readOnly: ${!!c.readOnly}`).join('\n');
+    el.textContent = `LISTA "Casas":\n${fmt(casasCols)}\n\nLISTA "FaturasServicos":\n${fmt(faturasCols)}`;
+  }catch(e){
+    el.textContent = 'Erro ao obter colunas: ' + e.message;
+  }
+}
+async function fetchRawColumns(listId){
+  let all = [];
+  let url = `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,hidden,readOnly&$top=200`;
+  while(url){
+    const data = await graphFetch(url);
+    all = all.concat(data.value||[]);
+    url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH_BASE,'') : null;
+  }
+  return all;
+}
 
 /* ====================== BOOT ====================== */
 async function bootApp(){
