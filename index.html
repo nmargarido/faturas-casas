@@ -149,8 +149,13 @@
 
 <!-- ===================== MODAL: CASA ===================== -->
 <div class="modal-overlay" id="modalCasa">
-  <div class="modal">
+  <div class="modal" style="max-width:640px;">
     <h3 id="modalCasaTitle">Nova casa</h3>
+    <div class="tag-row" id="casaTabs" style="display:none;">
+      <button type="button" class="filter-chip active" data-casatab="dados">Dados</button>
+      <button type="button" class="filter-chip" data-casatab="despesas">Despesas</button>
+    </div>
+    <div id="casaTabDados">
     <div class="form-section">Identificação</div>
     <div class="form-grid">
       <div class="form-row"><label>Nome (apelido)</label><input id="fCasaNome"></div>
@@ -175,6 +180,10 @@
     </div>
     <div class="form-section">Renda</div>
     <div class="form-row"><label>Valor da renda (€)</label><input id="fValorRenda" type="number" step="0.01"></div>
+    </div>
+    <div id="casaTabDespesas" style="display:none;">
+      <div id="casaDespesasWrap"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn secondary" onclick="closeModal('modalCasa')">Cancelar</button>
       <button class="btn" id="btnGuardarCasa">Guardar</button>
@@ -575,9 +584,41 @@ async function saveCasa(){
   }
 }
 
+function switchCasaTab(tab){
+  document.querySelectorAll('#casaTabs .filter-chip').forEach(b=>b.classList.toggle('active', b.dataset.casatab===tab));
+  document.getElementById('casaTabDados').style.display = tab==='dados' ? '' : 'none';
+  document.getElementById('casaTabDespesas').style.display = tab==='despesas' ? '' : 'none';
+}
+document.querySelectorAll('#casaTabs .filter-chip').forEach(btn=>{
+  btn.addEventListener('click', ()=>switchCasaTab(btn.dataset.casatab));
+});
+
+function renderCasaDespesas(spId){
+  const wrap = document.getElementById('casaDespesasWrap');
+  const rows = state.faturas.filter(f=>f.casaSpId===spId).sort((a,b)=>(b.mes||'').localeCompare(a.mes||''));
+  if(!rows.length){ wrap.innerHTML = `<div class="empty">Ainda não há faturas registadas para esta casa.</div>`; return; }
+  const total = rows.reduce((s,f)=> s + (f.valor!=null ? Number(f.valor) : 0), 0);
+  const badgeClass = e => e==='Paga' ? 'paga' : (e==='Vencida' ? 'vencida' : 'pendente');
+  wrap.innerHTML = `
+    <div class="muted" style="font-size:12.5px;margin-bottom:10px;">Total (${rows.length} fatura${rows.length===1?'':'s'}): <strong style="color:var(--text);">${fmtCurrency(total)}</strong></div>
+    <table><thead><tr><th>Tipo</th><th>Fornecedor</th><th>Mês</th><th class="num">Valor</th><th>Estado</th><th>Ficheiro</th></tr></thead><tbody>
+    ${rows.map(f=>`
+      <tr>
+        <td>${escapeHtml(f.tipoServico)}</td>
+        <td>${escapeHtml(f.fornecedor)}</td>
+        <td>${fmtMonth(f.mes)}</td>
+        <td class="num">${f.valor!=null?fmtCurrency(f.valor):'—'}</td>
+        <td><span class="badge ${badgeClass(f.estado)}">${escapeHtml(f.estado)}</span></td>
+        <td>${f.ficheiroUrl?`<a class="filelink" href="${f.ficheiroUrl}" target="_blank" rel="noopener">Abrir</a>`:'<span class="muted">—</span>'}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
 function openNovaCasa(){
   editingCasaId = null;
   document.getElementById('modalCasaTitle').textContent = 'Nova casa';
+  document.getElementById('casaTabs').style.display = 'none';
+  switchCasaTab('dados');
   ['fCasaNome','fCasaMorada','fCasaCP','fCasaCPDesc','fInqNome','fInqTel','fInqEmail','fCondAdmin','fCondTel','fCondEmail','fCondValor','fValorRenda']
     .forEach(id=>document.getElementById(id).value='');
   openModal('modalCasa');
@@ -587,6 +628,8 @@ function openEditarCasa(spId){
   if(!c) return;
   editingCasaId = spId;
   document.getElementById('modalCasaTitle').textContent = 'Editar casa';
+  document.getElementById('casaTabs').style.display = 'flex';
+  switchCasaTab('dados');
   document.getElementById('fCasaNome').value = c.nome||'';
   document.getElementById('fCasaMorada').value = c.morada||'';
   document.getElementById('fCasaCP').value = c.codigoPostal||'';
@@ -599,6 +642,7 @@ function openEditarCasa(spId){
   document.getElementById('fCondEmail').value = c.condEmail||'';
   document.getElementById('fCondValor').value = c.condValor ?? '';
   document.getElementById('fValorRenda').value = c.valorRenda ?? '';
+  renderCasaDespesas(spId);
   openModal('modalCasa');
 }
 
