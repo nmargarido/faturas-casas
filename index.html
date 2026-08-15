@@ -69,7 +69,7 @@
   .filter-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
   .tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
   footer.hint{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:12px;line-height:1.6;}
-  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2430;color:#fff;padding:10px 18px;border-radius:8px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:200;opacity:0;pointer-events:none;transition:opacity .2s ease;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2430;color:#fff;padding:10px 18px;border-radius:8px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:200;opacity:0;pointer-events:none;transition:opacity .2s ease;max-width:90vw;word-break:break-word;}
   .toast.show{opacity:1;}
   #authGate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:18px;padding:24px;text-align:center;}
   #authGate .box{max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:32px 28px;}
@@ -306,6 +306,11 @@ function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function toastLong(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 9000);
 }
 function openModal(id){ document.getElementById(id).classList.add('active'); }
 function closeModal(id){ document.getElementById(id).classList.remove('active'); }
@@ -706,11 +711,17 @@ async function saveFatura(){
       const [ano, mesNum] = f.mes.split('-');
       const meses = ['01-Jan','02-Fev','03-Mar','04-Abr','05-Mai','06-Jun','07-Jul','08-Ago','09-Set','10-Out','11-Nov','12-Dez'];
       const nomeMesPasta = meses[parseInt(mesNum,10)-1];
-      const folderPath = await getOrCreateFolder([casa ? casa.nome : 'Outra', ano, nomeMesPasta]);
-      const baseName = `${f.fornecedor}_${casa?casa.nome:''}_${f.mes}`;
-      const uploaded = await uploadFaturaAnexo(fileInput.files[0], folderPath, baseName);
-      if(uploaded){ f.ficheiroUrl = uploaded.url; f.ficheiroNome = uploaded.nome; }
+      try{
+        const folderPath = await getOrCreateFolder([casa ? casa.nome : 'Outra', ano, nomeMesPasta]);
+        const baseName = `${f.fornecedor}_${casa?casa.nome:''}_${f.mes}`;
+        const uploaded = await uploadFaturaAnexo(fileInput.files[0], folderPath, baseName);
+        if(uploaded){ f.ficheiroUrl = uploaded.url; f.ficheiroNome = uploaded.nome; }
+      }catch(eUp){
+        console.error('Falha no upload do ficheiro:', eUp);
+        throw new Error('Falha ao enviar o ficheiro para o OneDrive: ' + eUp.message);
+      }
     }
+    let linkWarning = null;
     if(editingFaturaId){
       const existing = state.faturas.find(x=>x.spId===editingFaturaId);
       if(!f.ficheiroUrl && existing){ f.ficheiroUrl = existing.ficheiroUrl; f.ficheiroNome = existing.ficheiroNome; }
@@ -721,7 +732,7 @@ async function saveFatura(){
           await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${editingFaturaId}/fields`, { method:'PATCH', body: JSON.stringify(linkFields) });
         }catch(e2){
           console.error('Falha ao gravar link do ficheiro:', e2);
-          toast('Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message);
+          linkWarning = 'Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message;
         }
       }
     }else{
@@ -732,12 +743,16 @@ async function saveFatura(){
           await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${created.id}/fields`, { method:'PATCH', body: JSON.stringify(linkFields) });
         }catch(e2){
           console.error('Falha ao gravar link do ficheiro:', e2);
-          toast('Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message);
+          linkWarning = 'Fatura guardada, mas houve um erro a ligar o ficheiro: ' + e2.message;
         }
       }
     }
     closeModal('modalFatura');
-    toast('Fatura guardada.');
+    if(linkWarning){
+      toastLong(linkWarning);
+    }else{
+      toast('Fatura guardada.');
+    }
     await loadFaturas();
     renderFaturas();
   }catch(e){
