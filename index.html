@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casas & Faturas de Serviços</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --border:#e2e5ea; --text:#1f2430; --muted:#6b7280;
+    --accent:#173257; --accent-dark:#0e2038; --accent-light:#e8edf4;
+    --gold:#FAC415; --gold-dark:#D9A800; --gold-light:#fef6dd;
+    --navy:#14213D; --navy-light:#1f3157;
+    --green:#15803d; --green-bg:#e8f7ee; --amber:#b45309; --amber-bg:#fef3e0;
+    --red:#b91c1c; --red-bg:#fdeceb; --gray-bg:#eef0f3;
+    --radius:10px; --shadow:0 1px 3px rgba(20,20,30,.08), 0 1px 2px rgba(20,20,30,.04);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  header{background:var(--navy);border-bottom:3px solid var(--gold);padding:15px 24px;display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:50;flex-wrap:wrap;}
+  header h1{font-size:19px;margin:0;font-weight:700;white-space:nowrap;color:#fff;letter-spacing:.01em;}
+  nav{display:flex;gap:4px;flex-wrap:wrap;}
+  nav button{background:none;border:none;padding:10px 16px;border-radius:8px;font-size:14.5px;cursor:pointer;color:#fff;font-weight:600;}
+  nav button.active{background:rgba(250,196,21,.16);color:var(--gold);}
+  nav button:hover{background:rgba(255,255,255,.08);}
+  .spacer{flex:1;}
+  select, input, textarea{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);}
+  select:focus, input:focus, textarea:focus{outline:2px solid var(--accent-light);border-color:var(--accent);}
+  header .pill{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);padding:6px 12px;border-radius:8px;font-size:12.5px;}
+  main{padding:24px;max-width:1180px;margin:0 auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-bottom:18px;}
+  .card h2{margin:0 0 4px;font-size:15px;}
+  .card .sub{color:var(--muted);font-size:12.5px;margin-bottom:14px;}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  .toolbar input[type=text],.toolbar input[type=search]{min-width:220px;flex:1;}
+  .btn{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .btn:hover{background:var(--accent-dark);}
+  .btn:disabled{opacity:.55;cursor:default;}
+  .btn.secondary{background:var(--gray-bg);color:var(--text);}
+  .btn.secondary:hover{background:#e2e5ea;}
+  .btn.danger{background:var(--red-bg);color:var(--red);}
+  .btn.danger:hover{background:#f9d9d6;}
+  .btn.small{padding:5px 10px;font-size:12.5px;border-radius:6px;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:9px 10px;border-bottom:1px solid #edeff2;vertical-align:middle;}
+  tr.clickable{cursor:pointer;}
+  tr.clickable:hover td{background:var(--gray-bg);}
+  .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;white-space:nowrap;}
+  .badge.paga{background:var(--green-bg);color:var(--green);}
+  .badge.pendente{background:var(--amber-bg);color:var(--amber);}
+  .badge.vencida{background:var(--red-bg);color:var(--red);}
+  .muted{color:var(--muted);}
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,18,25,.45);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:100;}
+  .modal-overlay.active{display:flex;}
+  .modal{background:#fff;border-radius:12px;padding:22px 24px;width:100%;max-width:560px;box-shadow:0 20px 50px rgba(0,0,0,.25);}
+  .modal h3{margin:0 0 16px;font-size:16px;}
+  .form-row{margin-bottom:12px;}
+  .form-row label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:5px;}
+  .form-row input, .form-row select, .form-row textarea{width:100%;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .form-section{font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.03em;margin:16px 0 8px;padding-top:10px;border-top:1px solid var(--border);}
+  .form-section:first-of-type{border-top:none;padding-top:0;margin-top:0;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+  .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;}
+  .filter-chip{padding:6px 12px;border-radius:99px;border:1px solid var(--border);background:#fff;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted);}
+  .filter-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  footer.hint{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:12px;line-height:1.6;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2430;color:#fff;padding:10px 18px;border-radius:8px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:200;opacity:0;pointer-events:none;transition:opacity .2s ease;}
+  .toast.show{opacity:1;}
+  #authGate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:18px;padding:24px;text-align:center;}
+  #authGate .box{max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:32px 28px;}
+  #authGate h2{margin:0 0 8px;font-size:19px;}
+  #authGate p{color:var(--muted);font-size:13.5px;margin:0 0 20px;line-height:1.6;}
+  .spinner{width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 14px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  a.filelink{color:var(--accent);font-weight:600;text-decoration:none;}
+  a.filelink:hover{text-decoration:underline;}
+  @media (max-width:640px){
+    .form-grid{grid-template-columns:1fr;}
+    header{padding:12px 16px;}
+    main{padding:16px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <div class="box">
+    <h2>Casas &amp; Faturas de Serviços</h2>
+    <p>Inicia sessão com a tua conta Microsoft para aceder aos dados (guardados no SharePoint e OneDrive).</p>
+    <div id="authGateSpinner" style="display:none;"><div class="spinner"></div></div>
+    <div id="authGateMsg" class="muted" style="font-size:13px;margin-bottom:14px;"></div>
+    <button class="btn" id="btnLogin">Iniciar sessão com a Microsoft</button>
+  </div>
+</div>
+
+<header>
+  <h1>🏠 Casas &amp; Faturas de Serviços</h1>
+  <nav>
+    <button data-view="casas" class="active">Casas</button>
+    <button data-view="faturas">Faturas de Serviços</button>
+  </nav>
+  <div class="spacer"></div>
+  <span class="pill" id="userPill">—</span>
+</header>
+
+<main>
+
+  <!-- ===================== VIEW: CASAS ===================== -->
+  <div class="view active" id="view-casas">
+    <div class="card">
+      <div class="toolbar">
+        <input type="search" id="casasSearch" placeholder="Pesquisar casa, morada ou inquilino...">
+        <div class="spacer"></div>
+        <button class="btn" id="btnNovaCasa">+ Nova casa</button>
+      </div>
+      <div id="casasTableWrap"></div>
+    </div>
+  </div>
+
+  <!-- ===================== VIEW: FATURAS ===================== -->
+  <div class="view" id="view-faturas">
+    <div class="card">
+      <div class="toolbar">
+        <select id="filtroCasa"><option value="">Todas as casas</option></select>
+        <select id="filtroTipo">
+          <option value="">Todos os tipos</option>
+          <option>Eletricidade</option><option>Água</option><option>Gás</option><option>Outro</option>
+        </select>
+        <select id="filtroEstado">
+          <option value="">Todos os estados</option>
+          <option>Pendente</option><option>Paga</option><option>Vencida</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn" id="btnNovaFatura">+ Nova fatura</button>
+      </div>
+      <div id="faturasTableWrap"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="hint">Dados guardados nas listas SharePoint "Casas" e "FaturasServicos" (site NM-SharePoint). Ficheiros das faturas guardados no OneDrive, pasta "Faturas Serviços Casas". Sessão iniciada com a tua conta Microsoft.</footer>
+
+<!-- ===================== MODAL: CASA ===================== -->
+<div class="modal-overlay" id="modalCasa">
+  <div class="modal">
+    <h3 id="modalCasaTitle">Nova casa</h3>
+    <div class="form-section">Identificação</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Nome (apelido)</label><input id="fCasaNome"></div>
+      <div class="form-row"><label>Código postal</label><input id="fCasaCP" placeholder="0000-000"></div>
+    </div>
+    <div class="form-row"><label>Morada</label><input id="fCasaMorada"></div>
+    <div class="form-section">Inquilino</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Nome</label><input id="fInqNome"></div>
+      <div class="form-row"><label>Telemóvel</label><input id="fInqTel"></div>
+    </div>
+    <div class="form-row"><label>E-mail</label><input id="fInqEmail" type="email"></div>
+    <div class="form-section">Condomínio</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Administrador</label><input id="fCondAdmin"></div>
+      <div class="form-row"><label>Telemóvel</label><input id="fCondTel"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>E-mail</label><input id="fCondEmail" type="email"></div>
+      <div class="form-row"><label>Valor do condomínio (€)</label><input id="fCondValor" type="number" step="0.01"></div>
+    </div>
+    <div class="form-section">Renda</div>
+    <div class="form-row"><label>Valor da renda (€)</label><input id="fValorRenda" type="number" step="0.01"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalCasa')">Cancelar</button>
+      <button class="btn" id="btnGuardarCasa">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: FATURA ===================== -->
+<div class="modal-overlay" id="modalFatura">
+  <div class="modal">
+    <h3 id="modalFaturaTitle">Nova fatura</h3>
+    <div class="form-row"><label>Casa</label><select id="fFatCasa"></select></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Tipo de serviço</label>
+        <select id="fFatTipo"><option>Eletricidade</option><option>Água</option><option>Gás</option><option>Outro</option></select>
+      </div>
+      <div class="form-row"><label>Fornecedor</label>
+        <select id="fFatFornecedor"><option>Endesa</option><option>EEM</option><option>Galp</option><option>SIMAR</option><option>Funchal</option><option>Outro</option></select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Mês a que respeita</label><input id="fFatMes" type="month"></div>
+      <div class="form-row"><label>Valor (€)</label><input id="fFatValor" type="number" step="0.01"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Data de emissão</label><input id="fFatEmissao" type="date"></div>
+      <div class="form-row"><label>Data limite de pagamento</label><input id="fFatLimite" type="date"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Nº do documento</label><input id="fFatNumDoc"></div>
+      <div class="form-row"><label>Estado</label>
+        <select id="fFatEstado"><option>Pendente</option><option>Paga</option><option>Vencida</option></select>
+      </div>
+    </div>
+    <div class="form-row"><label>Descrição (opcional)</label><input id="fFatDescricao" placeholder="ex: Endesa - Prior Velho - Jul 2026"></div>
+    <div class="form-row"><label>Ficheiro da fatura (PDF, máx. 4MB)</label><input id="fFatFicheiro" type="file" accept="application/pdf,image/*"></div>
+    <div id="fFatFicheiroAtual" class="muted" style="font-size:12.5px;"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modalFatura')">Cancelar</button>
+      <button class="btn" id="btnGuardarFatura">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script>
+/* ====================== CONFIG ====================== */
+// Reutiliza o mesmo registo de app do Azure AD (Client ID) da app de Faturas de Fornecedores.
+const MSAL_CONFIG = {
+  auth: {
+    clientId: "42d6b713-5349-4541-88ed-78c2ca027c68",
+    authority: "https://login.microsoftonline.com/e314cb77-798f-4b48-bbd1-9203301fb030",
+    redirectUri: window.location.origin + window.location.pathname
+  },
+  cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false }
+};
+const GRAPH_SCOPES = ["Sites.Manage.All", "Sites.ReadWrite.All", "Files.ReadWrite.All", "User.Read"];
+const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
+const SITE_HOSTNAME = "ventaskpt.sharepoint.com";
+const SITE_PATH = "/sites/NM-SharePoint";
+const CASAS_LIST_NAME = "Casas";
+const FATURAS_LIST_NAME = "FaturasServicos";
+const ONEDRIVE_OWNER_UPN = "nuno.margarido@ventask.pt";
+const ONEDRIVE_ROOT_FOLDER = "Faturas Serviços Casas";
+const ONEDRIVE_MAX_SIZE = 4 * 1024 * 1024; // 4MB (upload simples)
+
+let msalInstance = null;
+let currentAccount = null;
+let siteId = null, casasListId = null, faturasListId = null;
+let state = { casas: [], faturas: [] };
+let editingCasaId = null, editingFaturaId = null;
+
+/* ====================== UTIL ====================== */
+const fmtCurrency = v => new Intl.NumberFormat('pt-PT', {style:'currency', currency:'EUR'}).format(v||0);
+const fmtDate = iso => {
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '—';
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+};
+const fmtMonth = iso => {
+  if(!iso) return '—';
+  const [y,m] = iso.split('-');
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${meses[parseInt(m,10)-1]} ${y}`;
+};
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+/* ====================== AUTH ====================== */
+async function initAuth(){
+  msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+  await msalInstance.initialize();
+  setAuthGateSpinner(true);
+  setAuthGateMsg('A verificar sessão...');
+  try{
+    const result = await msalInstance.handleRedirectPromise();
+    if(result && result.account){
+      currentAccount = result.account;
+      msalInstance.setActiveAccount(currentAccount);
+    }else{
+      const accounts = msalInstance.getAllAccounts();
+      if(accounts.length){
+        currentAccount = accounts[0];
+        msalInstance.setActiveAccount(currentAccount);
+      }
+    }
+  }catch(e){
+    console.error(e);
+    setAuthGateMsg('Erro ao processar o login: ' + (e.message||e));
+  }
+  setAuthGateSpinner(false);
+  if(currentAccount){
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('userPill').textContent = currentAccount.name || currentAccount.username || 'Sessão iniciada';
+    await bootApp();
+  }else{
+    setAuthGateMsg('');
+    document.getElementById('btnLogin').style.display = 'inline-block';
+  }
+}
+function setAuthGateSpinner(on){ document.getElementById('authGateSpinner').style.display = on ? 'block' : 'none'; }
+function setAuthGateMsg(msg){ document.getElementById('authGateMsg').textContent = msg; }
+
+document.getElementById('btnLogin').addEventListener('click', async ()=>{
+  try{
+    document.getElementById('btnLogin').style.display = 'none';
+    setAuthGateSpinner(true);
+    setAuthGateMsg('A abrir o login da Microsoft...');
+    await msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
+  }catch(e){
+    console.error(e);
+    setAuthGateSpinner(false);
+    setAuthGateMsg('Não foi possível iniciar sessão: ' + (e.message||e));
+    document.getElementById('btnLogin').style.display = 'inline-block';
+  }
+});
+
+async function getGraphToken(){
+  const account = msalInstance.getActiveAccount();
+  if(!account) throw new Error('Sem sessão iniciada');
+  try{
+    const result = await msalInstance.acquireTokenSilent({ scopes: GRAPH_SCOPES, account });
+    return result.accessToken;
+  }catch(e){
+    const result = await msalInstance.acquireTokenPopup({ scopes: GRAPH_SCOPES });
+    return result.accessToken;
+  }
+}
+
+/* ====================== GRAPH HELPERS ====================== */
+async function graphFetch(pathOrUrl, options={}){
+  const token = await getGraphToken();
+  const url = pathOrUrl.startsWith('http') ? pathOrUrl : GRAPH_BASE + pathOrUrl;
+  const res = await fetch(url, {
+    ...options,
+    headers: { ...(options.headers||{}), Authorization: `Bearer ${token}`, 'Content-Type':'application/json' }
+  });
+  if(res.status === 429){
+    const retryAfter = parseFloat(res.headers.get('Retry-After')||'2');
+    await new Promise(r=>setTimeout(r, retryAfter*1000));
+    return graphFetch(pathOrUrl, options);
+  }
+  if(!res.ok){
+    const t = await res.text().catch(()=> '');
+    throw new Error(`Graph ${res.status}: ${t.slice(0,300)}`);
+  }
+  if(res.status === 204) return null;
+  return res.json();
+}
+
+async function getSiteId(){
+  const cached = localStorage.getItem('sp_site_id_casas');
+  if(cached) return cached;
+  const data = await graphFetch(`/sites/${SITE_HOSTNAME}:${SITE_PATH}`);
+  localStorage.setItem('sp_site_id_casas', data.id);
+  return data.id;
+}
+
+async function getListId(sName){
+  const cacheKey = 'sp_list_id_casas_' + sName;
+  const cached = localStorage.getItem(cacheKey);
+  if(cached){
+    try{ await graphFetch(`/sites/${siteId}/lists/${cached}`); return cached; }
+    catch(e){ localStorage.removeItem(cacheKey); }
+  }
+  let all = [];
+  let url = `/sites/${siteId}/lists?$top=200&$select=id,displayName,name`;
+  while(url){
+    const data = await graphFetch(url);
+    all = all.concat(data.value || []);
+    url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH_BASE,'') : null;
+  }
+  const target = sName.trim().toLowerCase();
+  const match = all.find(l => (l.displayName||'').trim().toLowerCase()===target || (l.name||'').trim().toLowerCase()===target);
+  if(!match) throw new Error(`Lista "${sName}" não encontrada no site. Confirma o nome exato no SharePoint.`);
+  localStorage.setItem(cacheKey, match.id);
+  return match.id;
+}
+
+/* ====================== ONEDRIVE: pasta Casa/Ano/Mês automática ====================== */
+async function getOrCreateFolder(parentPathSegments){
+  // parentPathSegments: array de nomes de pasta a partir da raiz ONEDRIVE_ROOT_FOLDER
+  // Garante que a pasta existe (cria se necessário), nível a nível.
+  const token = await getGraphToken();
+  let currentPath = ONEDRIVE_ROOT_FOLDER;
+  // Garante a pasta raiz primeiro
+  await ensureSingleFolder(token, '', ONEDRIVE_ROOT_FOLDER);
+  for(const seg of parentPathSegments){
+    await ensureSingleFolder(token, currentPath, seg);
+    currentPath = currentPath + '/' + seg;
+  }
+  return currentPath;
+}
+async function ensureSingleFolder(token, parentPath, folderName){
+  const checkPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+  const getUrl = `${GRAPH_BASE}/users/${encodeURIComponent(ONEDRIVE_OWNER_UPN)}/drive/root:/${checkPath.split('/').map(encodeURIComponent).join('/')}`;
+  const res = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}` } });
+  if(res.ok) return; // já existe
+  // cria
+  const parentUrl = parentPath
+    ? `${GRAPH_BASE}/users/${encodeURIComponent(ONEDRIVE_OWNER_UPN)}/drive/root:/${parentPath.split('/').map(encodeURIComponent).join('/')}:/children`
+    : `${GRAPH_BASE}/users/${encodeURIComponent(ONEDRIVE_OWNER_UPN)}/drive/root/children`;
+  const createRes = await fetch(parentUrl, {
+    method:'POST',
+    headers: { Authorization:`Bearer ${token}`, 'Content-Type':'application/json' },
+    body: JSON.stringify({ name: folderName, folder:{}, "@microsoft.graph.conflictBehavior":"fail" })
+  });
+  if(!createRes.ok && createRes.status !== 409){
+    const t = await createRes.text().catch(()=>'');
+    throw new Error(`Não foi possível criar a pasta "${folderName}": ${t.slice(0,200)}`);
+  }
+}
+
+async function uploadFaturaAnexo(file, folderPath, baseName){
+  if(!file) return null;
+  if(file.size > ONEDRIVE_MAX_SIZE) throw new Error('Ficheiro demasiado grande (máx. 4MB).');
+  const token = await getGraphToken();
+  const safeName = (baseName||'fatura').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ._-]+/g,'_').trim() || 'fatura';
+  const extMatch = /\.[a-zA-Z0-9]+$/.exec(file.name||'');
+  const ext = extMatch ? extMatch[0] : '';
+  const filename = `${safeName}_${Date.now()}${ext}`;
+  const fullPath = `${folderPath}/${filename}`;
+  const path = `/users/${encodeURIComponent(ONEDRIVE_OWNER_UPN)}/drive/root:/${fullPath.split('/').map(encodeURIComponent).join('/')}:/content`;
+  const res = await fetch(GRAPH_BASE + path, {
+    method:'PUT',
+    headers: { Authorization:`Bearer ${token}`, 'Content-Type': file.type || 'application/octet-stream' },
+    body: file
+  });
+  if(!res.ok){
+    const t = await res.text().catch(()=>'');
+    throw new Error(`Falha ao enviar o ficheiro (Graph ${res.status}): ${t.slice(0,200)}`);
+  }
+  const data = await res.json();
+  return { url: data.webUrl || '', nome: filename };
+}
+
+/* ====================== CASAS: LEITURA / ESCRITA ====================== */
+function casaToSpFields(c){
+  return {
+    Nome: c.nome || '',
+    Morada: c.morada || '',
+    CodigoPostal: c.codigoPostal || '',
+    InquilinoNome: c.inquilinoNome || '',
+    InquilinoTelemovel: c.inquilinoTelemovel || '',
+    InquilinoEmail: c.inquilinoEmail || '',
+    CondominioAdministrador: c.condAdmin || '',
+    CondominioTelemovel: c.condTelemovel || '',
+    CondominioEmail: c.condEmail || '',
+    CondominioValor: c.condValor !== '' && c.condValor != null ? Number(c.condValor) : null,
+    ValorRenda: c.valorRenda !== '' && c.valorRenda != null ? Number(c.valorRenda) : null
+  };
+}
+function spItemToCasa(it){
+  const f = it.fields || {};
+  return {
+    spId: it.id,
+    nome: f.Nome || f.Title || '',
+    morada: f.Morada || '',
+    codigoPostal: f.CodigoPostal || '',
+    inquilinoNome: f.InquilinoNome || '',
+    inquilinoTelemovel: f.InquilinoTelemovel || '',
+    inquilinoEmail: f.InquilinoEmail || '',
+    condAdmin: f.CondominioAdministrador || '',
+    condTelemovel: f.CondominioTelemovel || '',
+    condEmail: f.CondominioEmail || '',
+    condValor: f.CondominioValor,
+    valorRenda: f.ValorRenda
+  };
+}
+
+async function loadCasas(){
+  const data = await graphFetch(`/sites/${siteId}/lists/${casasListId}/items?$expand=fields&$top=200`);
+  state.casas = (data.value||[]).map(spItemToCasa);
+}
+
+async function saveCasa(){
+  const c = {
+    nome: document.getElementById('fCasaNome').value.trim(),
+    morada: document.getElementById('fCasaMorada').value.trim(),
+    codigoPostal: document.getElementById('fCasaCP').value.trim(),
+    inquilinoNome: document.getElementById('fInqNome').value.trim(),
+    inquilinoTelemovel: document.getElementById('fInqTel').value.trim(),
+    inquilinoEmail: document.getElementById('fInqEmail').value.trim(),
+    condAdmin: document.getElementById('fCondAdmin').value.trim(),
+    condTelemovel: document.getElementById('fCondTel').value.trim(),
+    condEmail: document.getElementById('fCondEmail').value.trim(),
+    condValor: document.getElementById('fCondValor').value,
+    valorRenda: document.getElementById('fValorRenda').value
+  };
+  if(!c.nome){ toast('Indica o nome (apelido) da casa.'); return; }
+  const btn = document.getElementById('btnGuardarCasa');
+  btn.disabled = true; btn.textContent = 'A guardar...';
+  try{
+    if(editingCasaId){
+      await graphFetch(`/sites/${siteId}/lists/${casasListId}/items/${editingCasaId}/fields`, { method:'PATCH', body: JSON.stringify(casaToSpFields(c)) });
+    }else{
+      await graphFetch(`/sites/${siteId}/lists/${casasListId}/items`, { method:'POST', body: JSON.stringify({ fields: casaToSpFields(c) }) });
+    }
+    closeModal('modalCasa');
+    toast('Casa guardada.');
+    await loadCasas();
+    renderCasas();
+    populateCasaSelects();
+  }catch(e){
+    console.error(e);
+    toast('Erro ao guardar: ' + e.message);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+}
+
+function openNovaCasa(){
+  editingCasaId = null;
+  document.getElementById('modalCasaTitle').textContent = 'Nova casa';
+  ['fCasaNome','fCasaMorada','fCasaCP','fInqNome','fInqTel','fInqEmail','fCondAdmin','fCondTel','fCondEmail','fCondValor','fValorRenda']
+    .forEach(id=>document.getElementById(id).value='');
+  openModal('modalCasa');
+}
+function openEditarCasa(spId){
+  const c = state.casas.find(x=>x.spId===spId);
+  if(!c) return;
+  editingCasaId = spId;
+  document.getElementById('modalCasaTitle').textContent = 'Editar casa';
+  document.getElementById('fCasaNome').value = c.nome||'';
+  document.getElementById('fCasaMorada').value = c.morada||'';
+  document.getElementById('fCasaCP').value = c.codigoPostal||'';
+  document.getElementById('fInqNome').value = c.inquilinoNome||'';
+  document.getElementById('fInqTel').value = c.inquilinoTelemovel||'';
+  document.getElementById('fInqEmail').value = c.inquilinoEmail||'';
+  document.getElementById('fCondAdmin').value = c.condAdmin||'';
+  document.getElementById('fCondTel').value = c.condTelemovel||'';
+  document.getElementById('fCondEmail').value = c.condEmail||'';
+  document.getElementById('fCondValor').value = c.condValor ?? '';
+  document.getElementById('fValorRenda').value = c.valorRenda ?? '';
+  openModal('modalCasa');
+}
+
+function renderCasas(){
+  const wrap = document.getElementById('casasTableWrap');
+  const q = (document.getElementById('casasSearch').value||'').trim().toLowerCase();
+  let rows = state.casas.filter(c => !q ||
+    (c.nome||'').toLowerCase().includes(q) ||
+    (c.morada||'').toLowerCase().includes(q) ||
+    (c.inquilinoNome||'').toLowerCase().includes(q));
+  if(!rows.length){ wrap.innerHTML = `<div class="empty">Nenhuma casa encontrada. Clica em "+ Nova casa" para adicionar.</div>`; return; }
+  rows.sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
+  wrap.innerHTML = `<table><thead><tr>
+      <th>Nome</th><th>Morada</th><th>Inquilino</th><th>Contacto</th>
+      <th class="num">Renda</th><th class="num">Condomínio</th>
+    </tr></thead><tbody>
+    ${rows.map(c=>`
+      <tr class="clickable" onclick="openEditarCasa('${c.spId}')">
+        <td><strong>${escapeHtml(c.nome)}</strong></td>
+        <td>${escapeHtml(c.morada)} ${c.codigoPostal?('<span class="muted">'+escapeHtml(c.codigoPostal)+'</span>'):''}</td>
+        <td>${escapeHtml(c.inquilinoNome)||'<span class="muted">—</span>'}</td>
+        <td class="muted">${escapeHtml(c.inquilinoTelemovel)||''} ${c.inquilinoEmail?('· '+escapeHtml(c.inquilinoEmail)):''}</td>
+        <td class="num">${c.valorRenda!=null?fmtCurrency(c.valorRenda):'—'}</td>
+        <td class="num">${c.condValor!=null?fmtCurrency(c.condValor):'—'}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function populateCasaSelects(){
+  const opts = state.casas.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''))
+    .map(c=>`<option value="${c.spId}">${escapeHtml(c.nome)}</option>`).join('');
+  document.getElementById('fFatCasa').innerHTML = opts;
+  const filtro = document.getElementById('filtroCasa');
+  filtro.innerHTML = `<option value="">Todas as casas</option>` + opts;
+}
+
+/* ====================== FATURAS: LEITURA / ESCRITA ====================== */
+function faturaToSpFields(f){
+  const fields = {
+    Title: f.descricao || `${f.fornecedor} - ${f.mes||''}`,
+    CasaLookupId: f.casaSpId ? parseInt(f.casaSpId,10) : null,
+    TipoServico: f.tipoServico,
+    Fornecedor: f.fornecedor,
+    Mes: f.mes ? new Date(f.mes+'-01T00:00:00Z').toISOString() : null,
+    DataEmissao: f.dataEmissao ? new Date(f.dataEmissao+'T00:00:00Z').toISOString() : null,
+    DataLimitePagamento: f.dataLimite ? new Date(f.dataLimite+'T00:00:00Z').toISOString() : null,
+    Valor: f.valor !== '' && f.valor != null ? Number(f.valor) : null,
+    Estado: f.estado,
+    NumeroDocumento: f.numDoc || ''
+  };
+  if(f.ficheiroUrl){
+    fields.LinkFicheiro = { Url: f.ficheiroUrl, Description: f.ficheiroNome || 'Fatura' };
+  }
+  return fields;
+}
+function spItemToFatura(it){
+  const f = it.fields || {};
+  return {
+    spId: it.id,
+    descricao: f.Title || '',
+    casaSpId: f.CasaLookupId ? String(f.CasaLookupId) : (f.Casa ? String(f.Casa) : ''),
+    casaNome: (f.Casa && f.Casa.LookupValue) ? f.Casa.LookupValue : '',
+    tipoServico: f.TipoServico || '',
+    fornecedor: f.Fornecedor || '',
+    mes: f.Mes ? f.Mes.slice(0,7) : '',
+    dataEmissao: f.DataEmissao ? f.DataEmissao.slice(0,10) : '',
+    dataLimite: f.DataLimitePagamento ? f.DataLimitePagamento.slice(0,10) : '',
+    valor: f.Valor,
+    estado: f.Estado || 'Pendente',
+    numDoc: f.NumeroDocumento || '',
+    ficheiroUrl: f.LinkFicheiro ? f.LinkFicheiro.Url : '',
+    ficheiroNome: f.LinkFicheiro ? f.LinkFicheiro.Description : ''
+  };
+}
+
+async function loadFaturas(){
+  const data = await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items?$expand=fields&$top=500`);
+  state.faturas = (data.value||[]).map(spItemToFatura);
+}
+
+async function saveFatura(){
+  const casaSpId = document.getElementById('fFatCasa').value;
+  const casa = state.casas.find(c=>c.spId===casaSpId);
+  const f = {
+    casaSpId,
+    tipoServico: document.getElementById('fFatTipo').value,
+    fornecedor: document.getElementById('fFatFornecedor').value,
+    mes: document.getElementById('fFatMes').value,
+    valor: document.getElementById('fFatValor').value,
+    dataEmissao: document.getElementById('fFatEmissao').value,
+    dataLimite: document.getElementById('fFatLimite').value,
+    numDoc: document.getElementById('fFatNumDoc').value.trim(),
+    estado: document.getElementById('fFatEstado').value,
+    descricao: document.getElementById('fFatDescricao').value.trim()
+  };
+  if(!casaSpId){ toast('Escolhe a casa.'); return; }
+  if(!f.mes){ toast('Indica o mês a que a fatura respeita.'); return; }
+  const btn = document.getElementById('btnGuardarFatura');
+  btn.disabled = true; btn.textContent = 'A guardar...';
+  try{
+    // Upload do ficheiro (se escolhido) -> cria pasta Casa/Ano/Mês automaticamente
+    const fileInput = document.getElementById('fFatFicheiro');
+    if(fileInput.files && fileInput.files[0]){
+      const [ano, mesNum] = f.mes.split('-');
+      const meses = ['01-Jan','02-Fev','03-Mar','04-Abr','05-Mai','06-Jun','07-Jul','08-Ago','09-Set','10-Out','11-Nov','12-Dez'];
+      const nomeMesPasta = meses[parseInt(mesNum,10)-1];
+      const folderPath = await getOrCreateFolder([casa ? casa.nome : 'Outra', ano, nomeMesPasta]);
+      const baseName = `${f.fornecedor}_${casa?casa.nome:''}_${f.mes}`;
+      const uploaded = await uploadFaturaAnexo(fileInput.files[0], folderPath, baseName);
+      if(uploaded){ f.ficheiroUrl = uploaded.url; f.ficheiroNome = uploaded.nome; }
+    }
+    if(editingFaturaId){
+      const existing = state.faturas.find(x=>x.spId===editingFaturaId);
+      if(!f.ficheiroUrl && existing){ f.ficheiroUrl = existing.ficheiroUrl; f.ficheiroNome = existing.ficheiroNome; }
+      await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items/${editingFaturaId}/fields`, { method:'PATCH', body: JSON.stringify(faturaToSpFields(f)) });
+    }else{
+      await graphFetch(`/sites/${siteId}/lists/${faturasListId}/items`, { method:'POST', body: JSON.stringify({ fields: faturaToSpFields(f) }) });
+    }
+    closeModal('modalFatura');
+    toast('Fatura guardada.');
+    await loadFaturas();
+    renderFaturas();
+  }catch(e){
+    console.error(e);
+    toast('Erro ao guardar: ' + e.message);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+}
+
+function openNovaFatura(){
+  editingFaturaId = null;
+  document.getElementById('modalFaturaTitle').textContent = 'Nova fatura';
+  document.getElementById('fFatMes').value = '';
+  document.getElementById('fFatValor').value = '';
+  document.getElementById('fFatEmissao').value = '';
+  document.getElementById('fFatLimite').value = '';
+  document.getElementById('fFatNumDoc').value = '';
+  document.getElementById('fFatDescricao').value = '';
+  document.getElementById('fFatEstado').value = 'Pendente';
+  document.getElementById('fFatFicheiro').value = '';
+  document.getElementById('fFatFicheiroAtual').textContent = '';
+  openModal('modalFatura');
+}
+function openEditarFatura(spId){
+  const f = state.faturas.find(x=>x.spId===spId);
+  if(!f) return;
+  editingFaturaId = spId;
+  document.getElementById('modalFaturaTitle').textContent = 'Editar fatura';
+  document.getElementById('fFatCasa').value = f.casaSpId||'';
+  document.getElementById('fFatTipo').value = f.tipoServico||'Eletricidade';
+  document.getElementById('fFatFornecedor').value = f.fornecedor||'Endesa';
+  document.getElementById('fFatMes').value = f.mes||'';
+  document.getElementById('fFatValor').value = f.valor ?? '';
+  document.getElementById('fFatEmissao').value = f.dataEmissao||'';
+  document.getElementById('fFatLimite').value = f.dataLimite||'';
+  document.getElementById('fFatNumDoc').value = f.numDoc||'';
+  document.getElementById('fFatDescricao').value = f.descricao||'';
+  document.getElementById('fFatEstado').value = f.estado||'Pendente';
+  document.getElementById('fFatFicheiro').value = '';
+  document.getElementById('fFatFicheiroAtual').textContent = f.ficheiroUrl ? `Ficheiro atual: ${f.ficheiroNome}` : '';
+  openModal('modalFatura');
+}
+
+function renderFaturas(){
+  const wrap = document.getElementById('faturasTableWrap');
+  const casaF = document.getElementById('filtroCasa').value;
+  const tipoF = document.getElementById('filtroTipo').value;
+  const estadoF = document.getElementById('filtroEstado').value;
+  let rows = state.faturas.filter(f =>
+    (!casaF || f.casaSpId===casaF) &&
+    (!tipoF || f.tipoServico===tipoF) &&
+    (!estadoF || f.estado===estadoF)
+  );
+  if(!rows.length){ wrap.innerHTML = `<div class="empty">Nenhuma fatura encontrada.</div>`; return; }
+  rows.sort((a,b)=> (b.mes||'').localeCompare(a.mes||''));
+  const casaNome = spId => { const c = state.casas.find(x=>x.spId===spId); return c ? c.nome : '—'; };
+  const badgeClass = e => e==='Paga' ? 'paga' : (e==='Vencida' ? 'vencida' : 'pendente');
+  wrap.innerHTML = `<table><thead><tr>
+      <th>Casa</th><th>Tipo</th><th>Fornecedor</th><th>Mês</th>
+      <th class="num">Valor</th><th>Estado</th><th>Ficheiro</th><th></th>
+    </tr></thead><tbody>
+    ${rows.map(f=>`
+      <tr>
+        <td>${escapeHtml(casaNome(f.casaSpId))}</td>
+        <td>${escapeHtml(f.tipoServico)}</td>
+        <td>${escapeHtml(f.fornecedor)}</td>
+        <td>${fmtMonth(f.mes)}</td>
+        <td class="num">${f.valor!=null?fmtCurrency(f.valor):'—'}</td>
+        <td><span class="badge ${badgeClass(f.estado)}">${escapeHtml(f.estado)}</span></td>
+        <td>${f.ficheiroUrl?`<a class="filelink" href="${f.ficheiroUrl}" target="_blank" rel="noopener">Abrir</a>`:'<span class="muted">—</span>'}</td>
+        <td><button class="btn small secondary" onclick="openEditarFatura('${f.spId}')">Editar</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ====================== NAVEGAÇÃO ====================== */
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  });
+});
+
+/* ====================== EVENTOS ====================== */
+document.getElementById('btnNovaCasa').addEventListener('click', openNovaCasa);
+document.getElementById('btnGuardarCasa').addEventListener('click', saveCasa);
+document.getElementById('casasSearch').addEventListener('input', renderCasas);
+document.getElementById('btnNovaFatura').addEventListener('click', openNovaFatura);
+document.getElementById('btnGuardarFatura').addEventListener('click', saveFatura);
+['filtroCasa','filtroTipo','filtroEstado'].forEach(id=>document.getElementById(id).addEventListener('change', renderFaturas));
+
+/* ====================== BOOT ====================== */
+async function bootApp(){
+  try{
+    siteId = await getSiteId();
+    casasListId = await getListId(CASAS_LIST_NAME);
+    faturasListId = await getListId(FATURAS_LIST_NAME);
+    await loadCasas();
+    populateCasaSelects();
+    renderCasas();
+    await loadFaturas();
+    renderFaturas();
+  }catch(e){
+    console.error(e);
+    toast('Erro ao carregar dados: ' + e.message);
+  }
+}
+
+initAuth();
+</script>
+</body>
+</html>
