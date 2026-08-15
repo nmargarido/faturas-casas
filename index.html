@@ -346,7 +346,8 @@ async function graphFetch(pathOrUrl, options={}){
   }
   if(!res.ok){
     const t = await res.text().catch(()=> '');
-    throw new Error(`Graph ${res.status}: ${t.slice(0,300)}`);
+    console.error('Graph error body:', t);
+    throw new Error(`Graph ${res.status}: ${t.slice(0,500)}`);
   }
   if(res.status === 204) return null;
   return res.json();
@@ -439,8 +440,13 @@ async function uploadFaturaAnexo(file, folderPath, baseName){
 }
 
 /* ====================== CASAS: LEITURA / ESCRITA ====================== */
+function stripNulls(obj){
+  const out = {};
+  for(const k in obj){ if(obj[k] !== null && obj[k] !== undefined && obj[k] !== '') out[k] = obj[k]; }
+  return out;
+}
 function casaToSpFields(c){
-  return {
+  return stripNulls({
     Title: c.nome || '',
     Morada: c.morada || '',
     CodigoPostal: c.codigoPostal || '',
@@ -453,7 +459,7 @@ function casaToSpFields(c){
     CondominioEmail: c.condEmail || '',
     CondominioValor: c.condValor !== '' && c.condValor != null ? Number(c.condValor) : null,
     ValorRenda: c.valorRenda !== '' && c.valorRenda != null ? Number(c.valorRenda) : null
-  };
+  });
 }
 function spItemToCasa(it){
   const f = it.fields || {};
@@ -578,7 +584,7 @@ function populateCasaSelects(){
 
 /* ====================== FATURAS: LEITURA / ESCRITA ====================== */
 function faturaToSpFields(f){
-  const fields = {
+  const fields = stripNulls({
     Title: f.descricao || `${f.fornecedor} - ${f.mes||''}`,
     CasaLookupId: f.casaSpId ? parseInt(f.casaSpId,10) : null,
     TipoServico: f.tipoServico,
@@ -589,7 +595,7 @@ function faturaToSpFields(f){
     Valor: f.valor !== '' && f.valor != null ? Number(f.valor) : null,
     Estado: f.estado,
     NumeroDocumento: f.numDoc || ''
-  };
+  });
   if(f.ficheiroUrl){
     fields.LinkFicheiro = { Url: f.ficheiroUrl, Description: f.ficheiroNome || 'Fatura' };
   }
